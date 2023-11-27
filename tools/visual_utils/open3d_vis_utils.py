@@ -10,7 +10,10 @@ import numpy as np
 
 box_colormap = [
     [1, 1, 1],
-    [0, 1, 0],
+    [1, 0, 0],
+    [1, 0, 0],
+    [1, 0, 0],
+    [0, 1, 1],
     [0, 1, 1],
     [1, 1, 0],
 ]
@@ -64,10 +67,10 @@ def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_labels=None, ref_scor
         pts.colors = open3d.utility.Vector3dVector(point_colors)
 
     if gt_boxes is not None:
-        vis = draw_box(vis, gt_boxes, (0, 0, 1))
+        vis = draw_box(vis, gt_boxes, (0, 1, 0))
 
     if ref_boxes is not None:
-        vis = draw_box(vis, ref_boxes, (0, 1, 0), ref_labels, ref_scores)
+        vis = draw_box(vis, ref_boxes, (1, 0, 0), ref_labels, ref_scores)
 
     vis.run()
     vis.destroy_window()
@@ -106,7 +109,7 @@ def draw_box(vis, gt_boxes, color=(0, 1, 0), ref_labels=None, score=None):
         if ref_labels is None:
             line_set.paint_uniform_color(color)
         else:
-            line_set.paint_uniform_color(box_colormap[ref_labels[i]])
+            line_set.paint_uniform_color(box_colormap[ref_labels[i] % 7])
 
         vis.add_geometry(line_set)
 

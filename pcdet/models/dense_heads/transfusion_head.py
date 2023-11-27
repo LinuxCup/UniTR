@@ -11,6 +11,7 @@ from .target_assigner.hungarian_assigner import HungarianAssigner3D
 from ...utils import loss_utils
 from ..model_utils import centernet_utils
 from ..model_utils import model_nms_utils
+import pdb
 
 
 class SeparateHead_Transfusion(nn.Module):
@@ -179,6 +180,7 @@ class TransFusionHead(nn.Module):
         dense_heatmap = self.heatmap_head(lidar_feat)
         heatmap = dense_heatmap.detach().sigmoid()
         padding = self.nms_kernel_size // 2
+        # pdb.set_trace()
         local_max = torch.zeros_like(heatmap)
         local_max_inner = F.max_pool2d(
             heatmap, kernel_size=self.nms_kernel_size, stride=1, padding=0
@@ -194,7 +196,7 @@ class TransFusionHead(nn.Module):
             local_max[ :, 2, ] = F.max_pool2d(heatmap[:, 2], kernel_size=1, stride=1, padding=0)
         heatmap = heatmap * (heatmap == local_max)
         x_grid, y_grid = heatmap.shape[-2:]
-        heatmap = heatmap.view(batch_size, heatmap.shape[1], -1)
+        heatmap = heatmap.view(batch_size, heatmap.shape[1], -1) #torch.Size([1, 10, 32400])
  
         # top num_proposals among all classes
         top_proposals = heatmap.view(batch_size, -1).argsort(dim=-1, descending=True)[
@@ -221,6 +223,7 @@ class TransFusionHead(nn.Module):
         # convert to xy
         query_pos = query_pos.flip(dims=[-1])
         bev_pos = bev_pos.flip(dims=[-1])
+        # pdb.set_trace()
         
         if self.query_local:
             # compute local key 
@@ -246,6 +249,7 @@ class TransFusionHead(nn.Module):
                 index=top_proposals_key_index.view(batch_size, 1, -1).expand(
                     -1, lidar_feat_flatten.shape[1], -1),
                 dim=-1,) 
+            # pdb.set_trace()
             # bs, feat_dim, num_proposals, key_num
             key_feat = key_feat.view(batch_size, lidar_feat_flatten.shape[1], num_proposals, -1) 
             key_pos = bev_pos.gather(
@@ -264,6 +268,7 @@ class TransFusionHead(nn.Module):
             query_feat_T = query_feat.permute(0, 2, 1).reshape(batch_size*num_proposals, -1, 1) 
             # bs, num_proposals, 1, 2
             query_pos_T = query_pos.view(-1, 1, query_pos.shape[-1])
+            # pdb.set_trace()
             query_feat_T = self.decoder(
                 query_feat_T, key_feat, query_pos_T, key_pos, key_padding_mask=key_padding_mask
             )

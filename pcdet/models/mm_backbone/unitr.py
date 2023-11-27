@@ -9,6 +9,8 @@ from pcdet.models.model_utils.dsvt_utils import PositionEmbeddingLearned
 from pcdet.models.backbones_3d.dsvt import _get_activation_fn, DSVTInputLayer
 from pcdet.ops.ingroup_inds.ingroup_inds_op import ingroup_inds
 get_inner_win_inds_cuda = ingroup_inds
+import pdb
+import time
 
 class UniTR(nn.Module):
     '''
@@ -159,12 +161,17 @@ class UniTR(nn.Module):
                 - image_features (Tensor[float]):
         '''
         # lidar(3d) and image(2d) preprocess
+        # pdb.set_trace()
+        t0 = time.time()
         multi_feat, voxel_info, patch_info, multi_set_voxel_inds_list, multi_set_voxel_masks_list, multi_pos_embed_list = self._input_preprocess(
             batch_dict)
+        t1 = time.time()
         # lidar(3d) and image(3d) preprocess
+        # pdb.set_trace()
         if self.image2lidar_on:
             image2lidar_inds_list, image2lidar_masks_list, multi_pos_embed_list = self._image2lidar_preprocess(
                 batch_dict, multi_feat, multi_pos_embed_list)
+        t2 = time.time()
         # lidar(2d) and image(2d) preprocess
         if self.lidar2image_on:
             lidar2image_inds_list, lidar2image_masks_list, multi_pos_embed_list = self._lidar2image_preprocess(
@@ -173,6 +180,8 @@ class UniTR(nn.Module):
         block_id = 0
         voxel_num = batch_dict['voxel_num']
         batch_dict['image_features'] = []
+        t3 = time.time()
+        # pdb.set_trace()
         # block forward
         for stage_id in range(self.stage_num):
             block_layers = self.__getattr__(f'stage_{stage_id}')
@@ -205,16 +214,24 @@ class UniTR(nn.Module):
                     batch_dict['image_features'].append(batch_spatial_features)
         batch_dict['pillar_features'] = batch_dict['voxel_features'] = output[:voxel_num]
         batch_dict['voxel_coords'] = voxel_info[f'voxel_coors_stage{self.stage_num - 1}']
+        # pdb.set_trace()
+        t4 = time.time()
+        print("_____:", t1-t0)
+        print("_____:", t2-t1)
+        print("_____:", t3-t2)
+        print("_____:", t4-t3)
         return batch_dict
 
     def _input_preprocess(self, batch_dict):
         # image branch
+        # pdb.set_trace()
         imgs = batch_dict['camera_imgs']
-        B, N, C, H, W = imgs.shape  # 6, 6, 3, 256, 704
+        B, N, C, H, W = imgs.shape  # 1, 6, 3, 256, 704
         imgs = imgs.view(B * N, C, H, W)
 
-        imgs, hw_shape = self.patch_embed(imgs)  # 8x [36, 2816, C] [32, 88]
+        imgs, hw_shape = self.patch_embed(imgs)  # [6, 2816, 128] [32, 88]
         batch_dict['hw_shape'] = hw_shape
+        # pdb.set_trace()
 
         # 36*2816, C
         batch_dict['patch_features'] = imgs.view(-1, imgs.shape[-1])
@@ -235,6 +252,7 @@ class UniTR(nn.Module):
         patch_pos_embed_list = [[[patch_info[f'pos_embed_stage{s}_block{b}_shift{i}']
                                   for i in range(self.num_shifts[s])] for b in range(self.image_pos_num)] for s in range(len(self.set_info))]
 
+        # pdb.set_trace()
         # lidar branch
         voxel_info = self.lidar_input_layer(batch_dict)
         voxel_feat = batch_dict['voxel_features']
@@ -245,6 +263,7 @@ class UniTR(nn.Module):
         pos_embed_list = [[[voxel_info[f'pos_embed_stage{s}_block{b}_shift{i}']
                             for i in range(self.num_shifts[s])] for b in range(self.lidar_pos_num)] for s in range(len(self.set_info))]
 
+        # pdb.set_trace()
         # multi-modality parallel
         voxel_num = voxel_feat.shape[0]
         batch_dict['voxel_num'] = voxel_num
@@ -272,13 +291,17 @@ class UniTR(nn.Module):
                 block_pos_embed_list.append(shift_pos_embed_list)
             multi_pos_embed_list.append(block_pos_embed_list)
 
+        # pdb.set_trace()
         return multi_feat, voxel_info, patch_info, multi_set_voxel_inds_list, multi_set_voxel_masks_list, multi_pos_embed_list
 
     def _image2lidar_preprocess(self, batch_dict, multi_feat, multi_pos_embed_list):
+        t0 = time.time()
         N = batch_dict['camera_imgs'].shape[1]
         voxel_num = batch_dict['voxel_num']
         image2lidar_coords_zyx, nearest_dist = self.map_image2lidar_layer(
             batch_dict)
+        # pdb.set_trace()
+        t1 = time.time()
         image2lidar_coords_bzyx = torch.cat(
             [batch_dict['patch_coords'][:, :1].clone(), image2lidar_coords_zyx], dim=1)
         image2lidar_coords_bzyx[:, 0] = image2lidar_coords_bzyx[:, 0] // N
@@ -286,7 +309,9 @@ class UniTR(nn.Module):
         image2lidar_batch_dict['voxel_features'] = multi_feat.clone()
         image2lidar_batch_dict['voxel_coords'] = torch.cat(
             [batch_dict['voxel_coords'], image2lidar_coords_bzyx], dim=0)
+        t2 = time.time()
         image2lidar_info = self.image2lidar_input_layer(image2lidar_batch_dict)
+        t3 = time.time()
         image2lidar_inds_list = [[image2lidar_info[f'set_voxel_inds_stage{s}_shift{i}']
                                   for i in range(self.num_shifts[s])] for s in range(len(self.set_info))]
         image2lidar_masks_list = [[image2lidar_info[f'set_voxel_mask_stage{s}_shift{i}']
@@ -301,6 +326,11 @@ class UniTR(nn.Module):
                                               self.image2lidar_start][i][voxel_num:] += image2lidar_neighbor_pos_embed
                 multi_pos_embed_list[0][b][i] += image2lidar_pos_embed_list[0][b -
                                                                                self.image2lidar_start][i]
+        t4 = time.time()
+        print("__________:", t1-t0)
+        print("__________:", t2-t1)
+        print("__________:", t3-t2)
+        print("__________:", t4-t3)
         return image2lidar_inds_list, image2lidar_masks_list, multi_pos_embed_list
 
     def _lidar2image_preprocess(self, batch_dict, multi_feat, multi_pos_embed_list):
@@ -563,6 +593,7 @@ class UniTRInputLayer(DSVTInputLayer):
                     number of remain voxels in stage_i;
                 - ...
         '''
+        # pdb.set_trace()
         if self.input_image and self.process_info is not None and (batch_dict['patch_coords'][:, 0][-1] == self.process_info['voxel_coors_stage0'][:, 0][-1]):
             patch_info = dict()
             for k in (self.process_info.keys()):

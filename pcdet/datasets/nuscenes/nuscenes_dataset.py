@@ -11,7 +11,7 @@ from ..dataset import DatasetTemplate
 from pyquaternion import Quaternion
 from PIL import Image
 import cv2
-
+import pdb
 
 class NuScenesDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
@@ -41,6 +41,7 @@ class NuScenesDataset(DatasetTemplate):
     def include_nuscenes_data(self, mode):
         self.logger.info('Loading NuScenes dataset')
         nuscenes_infos = []
+        # pdb.set_trace()
 
         for info_path in self.dataset_cfg.INFO_PATH[mode]:
             info_path = self.root_path / info_path
@@ -141,6 +142,7 @@ class NuScenesDataset(DatasetTemplate):
                 crop_h = newH - fH
                 crop_w = int(np.random.uniform(0, max(0, newW - fW)))
                 crop = (crop_w, crop_h, crop_w + fW, crop_h + fH)
+                # pdb.set_trace()
             else:
                 fH, fW = self.camera_image_config.FINAL_DIM
                 resize_lim = self.camera_image_config.RESIZE_LIM_TEST
@@ -150,6 +152,7 @@ class NuScenesDataset(DatasetTemplate):
                 crop_h = newH - fH
                 crop_w = int(max(0, newW - fW) / 2)
                 crop = (crop_w, crop_h, crop_w + fW, crop_h + fH)
+                # pdb.set_trace()
             
             # reisze and crop image
             img = img.resize(resize_dims)
@@ -211,11 +214,13 @@ class NuScenesDataset(DatasetTemplate):
             # images.append(Image.open(str(self.root_path / name))) 
             images.append(Image.fromarray(np.array(Image.open(str(self.root_path / name)))[:,:,::-1])) # bgr
         
+        # pdb.set_trace()
         input_dict["camera_imgs"] = images
         input_dict["ori_shape"] = images[0].size
         
         # resize and crop image
         input_dict = self.crop_image(input_dict)
+        # pdb.set_trace()
 
         return input_dict
 
@@ -231,6 +236,7 @@ class NuScenesDataset(DatasetTemplate):
 
         info = copy.deepcopy(self.infos[index])
         points = self.get_lidar_with_sweeps(index, max_sweeps=self.dataset_cfg.MAX_SWEEPS)
+        # pdb.set_trace()
 
         input_dict = {
             'points': points,
@@ -242,7 +248,7 @@ class NuScenesDataset(DatasetTemplate):
             input_dict['car_from_global'] = info['car_from_global']
             input_dict['location'] = info['location']
 
-        if 'gt_boxes' in info:
+        if 'gt_boxes' in info: # info['gt_boxes'].shape
             if self.dataset_cfg.get('FILTER_MIN_POINTS_IN_GT', False):
                 mask = (info['num_lidar_pts'] > self.dataset_cfg.FILTER_MIN_POINTS_IN_GT - 1)
             else:
@@ -261,6 +267,7 @@ class NuScenesDataset(DatasetTemplate):
         if self.use_camera:
             input_dict = self.load_camera_info(input_dict, info)
 
+        # pdb.set_trace()
         data_dict = self.prepare_data(data_dict=input_dict)
 
         if self.dataset_cfg.get('SET_NAN_VELOCITY_TO_ZEROS', False) and 'gt_boxes' in info:
@@ -271,6 +278,7 @@ class NuScenesDataset(DatasetTemplate):
         if not self.dataset_cfg.PRED_VELOCITY and 'gt_boxes' in data_dict:
             data_dict['gt_boxes'] = data_dict['gt_boxes'][:, [0, 1, 2, 3, 4, 5, 6, -1]]
 
+        # pdb.set_trace()
         return data_dict
 
     def evaluation(self, det_annos, class_names, **kwargs):

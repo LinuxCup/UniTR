@@ -3,6 +3,9 @@ from .. import backbones_image, view_transforms, mm_backbone
 from ..backbones_image import img_neck
 from ..backbones_2d import fuser
 from ...utils.spconv_utils import find_all_spconv_keys
+import pdb
+import time
+import torch
 
 class UniTR(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
@@ -99,9 +102,13 @@ class UniTR(Detector3DTemplate):
         return state_dict, update_model_state
 
     def forward(self, batch_dict): 
+        t0 = time.time()
         for cur_module in self.module_list:
+            # pdb.set_trace()
             batch_dict = cur_module(batch_dict)
-
+            torch.cuda.synchronize()
+            print(cur_module.__class__.__name__ + " " + str(time.time() - t0))
+            t0 = time.time()
         if self.training:
             loss, tb_dict, disp_dict = self.get_training_loss(batch_dict)
 
