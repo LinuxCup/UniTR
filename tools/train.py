@@ -78,6 +78,7 @@ def main():
             args.tcp_port, args.local_rank, backend='nccl'
         )
         dist_train = True
+    # pdb.set_trace()
 
     if args.batch_size is None:
         args.batch_size = cfg.OPTIMIZATION.BATCH_SIZE_PER_GPU
@@ -140,6 +141,8 @@ def main():
     start_epoch = it = 0
     last_epoch = -1
     # pdb.set_trace()
+    # weight = torch.load(args.pretrained_model, map_location='cpu')
+    # model.load_state_dict(weight)
     if args.pretrained_model is not None:
         model.load_params_from_file(filename=args.pretrained_model, to_cpu=dist_train, logger=logger)
 
