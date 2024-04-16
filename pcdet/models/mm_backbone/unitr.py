@@ -163,6 +163,7 @@ class UniTR(nn.Module):
         # lidar(3d) and image(2d) preprocess
         # pdb.set_trace()
         t0 = time.time()
+        # multi_feat.shape: torch.Size([20920, 128])
         multi_feat, voxel_info, patch_info, multi_set_voxel_inds_list, multi_set_voxel_masks_list, multi_pos_embed_list = self._input_preprocess(
             batch_dict)
         t1 = time.time()
@@ -190,6 +191,7 @@ class UniTR(nn.Module):
             for i in range(len(block_layers)):
                 block = block_layers[i]
                 residual = output.clone()
+                tb = time.time()
 
                 if self.image2lidar_on and i >= self.image2lidar_start and i < self.image2lidar_end:
                     output = block(output, image2lidar_inds_list[stage_id], image2lidar_masks_list[stage_id], multi_pos_embed_list[stage_id][i],
@@ -207,6 +209,7 @@ class UniTR(nn.Module):
                 else:
                     output = residual_norm_layers[i](output + residual)
                 block_id += 1
+                print(time.time() -tb)
                 # recover image feature shape
                 if i in self.out_indices:
                     batch_spatial_features = self._recover_image(pillar_features=output[voxel_num:],
@@ -233,7 +236,7 @@ class UniTR(nn.Module):
         batch_dict['hw_shape'] = hw_shape
         # pdb.set_trace()
 
-        # 36*2816, C
+        # 16896 = 6*2816, C
         batch_dict['patch_features'] = imgs.view(-1, imgs.shape[-1])
         if self.patch_coords is not None and ((self.patch_coords[:, 0].max().int().item() + 1) == B*N):
             batch_dict['patch_coords'] = self.patch_coords.clone()
@@ -244,7 +247,7 @@ class UniTR(nn.Module):
                                                    None, ::].repeat(B*N, 1, 1).view(-1, 3)], dim=-1).long()
             self.patch_coords = batch_dict['patch_coords'].clone()
         patch_info = self.image_input_layer(batch_dict)
-        patch_feat = batch_dict['patch_features']
+        patch_feat = batch_dict['patch_features'] #torch.Size([16896, 128])
         patch_set_voxel_inds_list = [[patch_info[f'set_voxel_inds_stage{s}_shift{i}']
                                       for i in range(self.num_shifts[s])] for s in range(len(self.set_info))]
         patch_set_voxel_masks_list = [[patch_info[f'set_voxel_mask_stage{s}_shift{i}']
@@ -255,7 +258,7 @@ class UniTR(nn.Module):
         # pdb.set_trace()
         # lidar branch
         voxel_info = self.lidar_input_layer(batch_dict)
-        voxel_feat = batch_dict['voxel_features']
+        voxel_feat = batch_dict['voxel_features'] #torch.Size([4024, 128])
         set_voxel_inds_list = [[voxel_info[f'set_voxel_inds_stage{s}_shift{i}']
                                 for i in range(self.num_shifts[s])] for s in range(len(self.set_info))]
         set_voxel_masks_list = [[voxel_info[f'set_voxel_mask_stage{s}_shift{i}']
@@ -327,10 +330,10 @@ class UniTR(nn.Module):
                 multi_pos_embed_list[0][b][i] += image2lidar_pos_embed_list[0][b -
                                                                                self.image2lidar_start][i]
         t4 = time.time()
-        print("__________:", t1-t0)
-        print("__________:", t2-t1)
-        print("__________:", t3-t2)
-        print("__________:", t4-t3)
+        # print("__________:", t1-t0)
+        # print("__________:", t2-t1)
+        # print("__________:", t3-t2)
+        # print("__________:", t4-t3)
         return image2lidar_inds_list, image2lidar_masks_list, multi_pos_embed_list
 
     def _lidar2image_preprocess(self, batch_dict, multi_feat, multi_pos_embed_list):

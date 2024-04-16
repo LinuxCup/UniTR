@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from pcdet.ops.pointnet2.pointnet2_stack.pointnet2_utils import three_nn
+import pdb
 
 def get_points(pc_range, sample_num, space_shape, coords=None):
     '''Generate points in specified range or voxels
@@ -55,6 +56,7 @@ def map_points(points, lidar2image, image_aug_matrix, batch_size, image_shape):
     points = points.to(torch.float32)
     lidar2image = lidar2image.to(torch.float32)
     image_aug_matrix = image_aug_matrix.to(torch.float32)
+    # pdb.set_trace()
 
     num_view = lidar2image.shape[1]
     points = torch.cat((points, torch.ones_like(points[..., :1])), -1)
@@ -67,6 +69,7 @@ def map_points(points, lidar2image, image_aug_matrix, batch_size, image_shape):
     image_aug_matrix = image_aug_matrix.view(
         batch_size, num_view, 1, 1, 4, 4).repeat(1, 1, grid_num, sample_num, 1, 1)
     points_2d = torch.matmul(lidar2image, points).squeeze(-1)
+    # pdb.set_trace()
 
     # recover image augmentation
     eps = 1e-5
@@ -124,18 +127,22 @@ class MapImage2Lidar(nn.Module):
             return image2lidar_coords_zyx, nearest_dist
         img = batch_dict['camera_imgs']
         batch_size, num_view, _, h, w = img.shape
-        points = self.points.clone()
+        points = self.points.clone() # torch.Size([129600, 20, 3]): 360*360
         lidar2image = batch_dict['lidar2image']
         image_aug_matrix = batch_dict['img_aug_matrix']
 
         with torch.no_grad():
             if self.training and 'lidar2image_aug' in batch_dict and not self.use_map:
                 lidar2image = batch_dict['lidar2image_aug']
-            # get mapping points in image space
+            # # get mapping points in image space
+            # torch.Size([1, 6, 129600, 20, 4])
+            # torch.Size([1, 6, 129600, 20, 2])
+            # torch.Size([1, 6, 129600, 20])
             points_3d, points_2d, map_mask = map_points(
                 points, lidar2image, image_aug_matrix, batch_size, (h, w))
             mapped_points_2d = points_2d[map_mask]
             mapped_points_3d = points_3d[map_mask]
+            # pdb.set_trace()
             mapped_view_cnts = map_mask.view(
                 batch_size, num_view, -1).sum(-1).view(-1).int()
             mapped_points = torch.cat(
@@ -157,6 +164,7 @@ class MapImage2Lidar(nn.Module):
                 [patch_points, torch.zeros_like(patch_points[:, :1])], dim=-1)
             patch_view_cnts = (torch.ones_like(
                 mapped_view_cnts) * (batch_dict['hw_shape'][0] * batch_dict['hw_shape'][1])).int()
+            # pdb.set_trace()
 
             # find the nearest 3 mapping points and keep the closest
             _, idx = three_nn(patch_points.to(torch.float32), patch_view_cnts, mapped_points.to(
@@ -164,6 +172,7 @@ class MapImage2Lidar(nn.Module):
             idx = idx[:, :1].repeat(1, 3).long()
             # take 3d coords of the nearest mapped point of each image patch as its 3d coords
             image2lidar_coords_xyz = torch.gather(mapped_coords_3d, 0, idx)
+            # pdb.set_trace()
 
             # calculate distance between each image patch and the nearest mapping point in image space
             neighbor_2d = torch.gather(mapped_points, 0, idx)
@@ -185,8 +194,10 @@ class MapImage2Lidar(nn.Module):
 
             # reorder to z,y,x
             image2lidar_coords_zyx = image2lidar_coords_xyz[:, [2, 1, 0]]
+            # pdb.set_trace()
         if self.accelerate:
             self.cache = (image2lidar_coords_zyx, nearest_dist)
+        # pdb.set_trace()
         return image2lidar_coords_zyx, nearest_dist
 
 
@@ -287,6 +298,7 @@ class MapLidar2Image(nn.Module):
         Returns:
             lidar2image_coords_zyx (tensor): The coordinates of lidar points in 3D space.
         '''
+        # pdb.set_trace()
         if self.accelerate:
             if self.full_lidar2image_coors_zyx is None:
                 self.pre_compute(batch_dict)
