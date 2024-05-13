@@ -25,15 +25,15 @@ def parse_config():
 
     parser.add_argument('--batch_size', type=int, default=None, required=False, help='batch size for training')
     parser.add_argument('--epochs', type=int, default=None, required=False, help='number of epochs to train for')
-    parser.add_argument('--workers', type=int, default=1, help='number of workers for dataloader')
+    parser.add_argument('--workers', type=int, default=0, help='number of workers for dataloader')
     parser.add_argument('--extra_tag', type=str, default='default', help='extra tag for this experiment')
     parser.add_argument('--ckpt', type=str, default=None, help='checkpoint to start from')
     parser.add_argument('--pretrained_model', type=str, default=None, help='pretrained_model')
     parser.add_argument('--launcher', choices=['none', 'pytorch', 'slurm'], default='none')
     parser.add_argument('--tcp_port', type=int, default=18888, help='tcp port for distrbuted training')
     parser.add_argument('--sync_bn', action='store_true', default=False, help='whether to use sync bn')
-    parser.add_argument('--fix_random_seed', action='store_true', default=False, help='')
-    parser.add_argument('--ckpt_save_interval', type=int, default=5, help='number of training epochs')
+    parser.add_argument('--fix_random_seed', action='store_true', default=True, help='')
+    parser.add_argument('--ckpt_save_interval', type=int, default=1, help='number of training epochs')
     parser.add_argument('--local_rank', type=int, default=0, help='local rank for distributed training')
     parser.add_argument('--max_ckpt_save_num', type=int, default=30, help='max number of saved checkpoint')
     parser.add_argument('--merge_all_iters_to_one_epoch', action='store_true', default=False, help='')
@@ -46,7 +46,7 @@ def parse_config():
     parser.add_argument('--save_to_file', action='store_true', default=False, help='')
     
     parser.add_argument('--use_tqdm_to_record', action='store_true', default=False, help='if True, the intermediate losses will not be logged to file, only tqdm will be used')
-    parser.add_argument('--logger_iter_interval', type=int, default=10, help='')
+    parser.add_argument('--logger_iter_interval', type=int, default=50, help='')
     parser.add_argument('--ckpt_save_time_interval', type=int, default=300, help='in terms of seconds')
     parser.add_argument('--wo_gpu_stat', action='store_true', help='')
     parser.add_argument('--use_amp', action='store_true', help='use mix precision training')
@@ -88,6 +88,7 @@ def main():
 
     args.epochs = cfg.OPTIMIZATION.NUM_EPOCHS if args.epochs is None else args.epochs
 
+    # pdb.set_trace()
     if args.fix_random_seed:
         common_utils.set_random_seed(666 + cfg.LOCAL_RANK)
 
@@ -134,6 +135,7 @@ def main():
     if args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model.cuda()
+    pdb.set_trace()
 
     optimizer = build_optimizer(model, cfg.OPTIMIZATION)
 
@@ -174,6 +176,7 @@ def main():
         optimizer, total_iters_each_epoch=len(train_loader), total_epochs=args.epochs,
         last_epoch=last_epoch, optim_cfg=cfg.OPTIMIZATION
     )
+    # torch.autograd.set_detect_anomaly(True)
     # pdb.set_trace()
 
     # -----------------------start training---------------------------

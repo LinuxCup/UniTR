@@ -235,7 +235,7 @@ MODEL:
             LOSS_IOU_REG: True
           
         POST_PROCESSING:
-            SCORE_THRESH: 0.0
+            SCORE_THRESH: 0.3
             POST_CENTER_RANGE: [-61.2, -61.2, -10.0, 61.2, 61.2, 10.0]
             USE_IOU_TO_RECTIFY_SCORE: True 
             IOU_RECTIFIER: [0.5]
@@ -244,7 +244,7 @@ MODEL:
             NMS_THRESH: 0.2
             NMS_PRE_MAXSIZE: 1000
             NMS_POST_MAXSIZE: 100
-            SCORE_THRES: 0.
+            SCORE_THRES: 0.1
           
 
     POST_PROCESSING:

@@ -1,5 +1,7 @@
 # The analysis of Unitr deployment
 
+by ZhengHu on 4/24/2024
+
 硬件环境：P4000
 
 软件环境：ubuntu18.04、python3.8、pytorch1.31、cuda11.8、TenosrRT8.5

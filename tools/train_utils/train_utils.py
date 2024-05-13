@@ -69,11 +69,15 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
         with torch.cuda.amp.autocast(enabled=use_amp):
             loss, tb_dict, disp_dict = model_func(model, batch)
 
-        scaler.scale(loss).backward()
-        scaler.unscale_(optimizer)
-        clip_grad_norm_(model.parameters(), optim_cfg.GRAD_NORM_CLIP)
-        scaler.step(optimizer)
-        scaler.update()
+        # scaler.scale(loss).backward()
+        # scaler.unscale_(optimizer)
+        # clip_grad_norm_(model.parameters(), optim_cfg.GRAD_NORM_CLIP)
+        # scaler.step(optimizer)
+        # scaler.update()
+        
+        loss.backward(retain_graph=True)
+        total_norm = clip_grad_norm_(model.parameters(), optim_cfg.GRAD_NORM_CLIP)
+        optimizer.step()
 
         accumulated_iter += 1
  
